@@ -1,13 +1,14 @@
 # What is it?
 
-A little script that inspects incoming connections on port 80, and looks
-for the user making the request. If the user is downloading a file, and
-they already started a download in the past 2 minutes, then kill the old
-one.
+A little script that limits the number of downloads that a user
+can initiate via a transparent proxy to my home machine. If the user is
+downloading a file, and they already started a download in the past 2 
+minutes, then kill the old download.
 
 This prevents my upstream caching proxy from flooding my home PC when
 users are clicking around previewing files, or Kodi is scanning, causing
-it to cache the entire file.
+it to cache the entire file when they only really peeked at the first few
+bytes of it.
 
 # How does it work?
 
