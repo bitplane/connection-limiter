@@ -9,15 +9,24 @@ import re
 import subprocess
 
 
-TCPDUMP_CMD = ['tcpdump', '-s 1024', '-l', '-v', '-n',
-               "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420"] # HTTP GET
-
+def tcp_filter_string(filter_string):
+    """
+    Create a packet capture filter based on the first string seen in a TCP stream
+    """
+    extract_high_nibble = '(({} & 0xf0) >> 2)'
+    tcp_data_start = extract_high_nibble.format('tcp[12:1]')
+    string_in_hex = bytes(filter_string, encoding='utf8').hex() 
+    return "tcp[{start}:{length}] = 0x{hex_str}".format(start=tcp_data_start,
+                                                        length=len(filter_string),
+                                                        hex_str=string_in_hex)
 
 def http_connections():
     """
     Dumps the output of the tcpdump process as lists of connection details
     """
-    process = subprocess.Popen(TCPDUMP_CMD, stdout=subprocess.PIPE,
+    tcpdmp_cmd = ['tcpdump', '-s 1024', '-l', '-v', '-n', tcp_filter_string('GET ')]
+
+    process = subprocess.Popen(tcpdmp_cmd, stdout=subprocess.PIPE,
                                bufsize=1, universal_newlines=True)
     with process:
         lines = []
