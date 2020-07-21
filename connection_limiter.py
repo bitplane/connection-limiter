@@ -1,17 +1,24 @@
 #!/usr/bin/python3
+"""
+Crude, hacky incoming connection limiter for web server
+"""
 
 import base64
 import datetime
 import re
 import subprocess
 
-TCPDUMP_CMD = ['tcpdump', '-s 1024', '-l', '-v', '-n', "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420"]
+
+TCPDUMP_CMD = ['tcpdump', '-s 1024', '-l', '-v', '-n',
+               "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420"] # HTTP GET
+
 
 def http_connections():
     """
-    Dumps the output of the tcpdump process as lists of connection details 
+    Dumps the output of the tcpdump process as lists of connection details
     """
-    process = subprocess.Popen(TCPDUMP_CMD, stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+    process = subprocess.Popen(TCPDUMP_CMD, stdout=subprocess.PIPE,
+                               bufsize=1, universal_newlines=True)
     with process:
         lines = []
         for line in process.stdout:
@@ -20,6 +27,7 @@ def http_connections():
                 lines = []
             else:
                 lines.append(line)
+
 
 def connection_seq():
     """
@@ -41,12 +49,20 @@ def connection_seq():
         res['time'] = datetime.datetime.now()
         yield res
 
+
 def kill_tcp_connection(dst_port):
+    """
+    Close a TCP connection that we don't own, based on the destination port number.
+    """
     print('killing connection with dest port ' + dst_port)
     cmd = ['timeout', '10s', 'tcpkill', 'dst', 'port', dst_port]
-    process = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def main():
+
+def run():
+    """
+    Main loop
+    """
     safe_time = datetime.timedelta(seconds=120)
     user_connections = {}
     for connection in connection_seq():
@@ -58,7 +74,7 @@ def main():
             connections_for_user = [conn for conn in connections_for_user
                                     if datetime.datetime.now() - conn['time'] < safe_time]
 
-            while len(connections_for_user):
+            while connections_for_user:
                 conn = connections_for_user.pop(0)
                 print('killing ongoing download for', conn['resource'])
                 kill_tcp_connection(conn['dst_port'])
@@ -66,6 +82,6 @@ def main():
             connections_for_user.append(connection)
             user_connections[connection['user']] = connections_for_user
 
-if __name__ == '__main__':
-    main()
 
+if __name__ == '__main__':
+    run()
